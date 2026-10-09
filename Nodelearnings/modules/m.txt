@@ -1,0 +1,52 @@
+// "type":"commonjs"
+
+
+
+Differences Between CommonJS (CJS) Modules and ES6 (ESM) Modules
+Node.js supports both CommonJS (CJS) and ES6 Modules (ESM), but they differ significantly in syntax, behavior, and use cases. Here's a detailed comparison:
+
+1. Syntax
+Aspect	           CommonJS (CJS)	                             ES6 Modules (ESM)
+Import	        const add = require('./math');	                  import { add } from './math.js';
+Export	        module.exports = add;	                          export default add; or export { add };
+ExportMultiple	module.exports = { add, subtract };	              export { add, subtract };
+
+2. File Extensions
+     CommonJS (CJS)	                             ES6 Modules (ESM)
+File extension is optional in require()	  File extension is mandatory in import (e.g., import { add } from './math.js';).
+
+3. Default Export Handling
+Feature	             CommonJS (CJS)	                          ES6 Modules (ESM)
+Default Export	  module.exports = add;	                    export default add;
+Import Default	  const add = require('./math');	        import add from './math.js';
+
+4. Synchronous vs Asynchronous
+Aspect	                CommonJS (CJS)	                                ES6 Modules (ESM)
+Loading	            Synchronous (blocks execution).      	           Asynchronous (non-blocking).
+Runtime Behavior	Works during execution (dynamic).	   Parsed and resolved before execution (static).
+
+5. Scope of Variables
+Feature	                   CommonJS (CJS)	                                  ES6 Modules (ESM)
+Scope	           All variables are scoped to the module.	         Same, but stricter rules for top-level declarations.
+this Context	   Refers to the exports object.	                 this is undefined at the top level.
+
+6. Compatibility
+Feature	                        CommonJS (CJS)	                            ES6 Modules (ESM)
+Supported in Browsers	   No, unless bundled with tools like Webpack.	         Yes, supported natively in modern browsers.
+Interop in Node.js	       Native support in all Node.js versions.	                 Full support starting with Node.js 12+ (with "type": "module" in package.json).
+
+7. Module Resolution
+Aspect	             CommonJS (CJS)	                               ES6 Modules (ESM)
+File Extensions	     Automatically resolves .js, .json, .node.	 Explicit .js or other extensions required.
+Directory Index	     Defaults to index.js in a folder.	         Defaults to index.js for CJS but requires explicit path for ESM.
+
+8. Dynamic Imports
+Feature	                             CommonJS (CJS)	                    ES6 Modules (ESM)
+Dynamic Import Syntax	        Not supported (use require).	    Supported with import() for async imports.
+Example     	               const math = require('./math');	    const math = await import('./math.js');
+
+
+9. Use Cases
+Aspect	                        CommonJS (CJS)	                                         ES6 Modules (ESM)
+PrimaryUse                   	Server-side Node.js applications.	                 Browser-compatible, modern projects.
+Backward Compatibility	        Fully compatible with older Node.js versions.	     Requires modern Node.js versions (12+).

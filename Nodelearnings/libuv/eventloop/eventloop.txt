@@ -1,0 +1,80 @@
+In every phase, microtasks take precedence before the event loop moves to the next phase.
+
+Timer Phase and Check Phase Exception: Microtasks created within callbacks are executed before moving to the next callback in the same phase.
+This behavior ensures a balance between responsiveness (timers) and non-blocking execution (microtasks).
+
+
+
+************************************* MOST IMPORTANT
+
+Exceptional Behavior in Timer Phase
+In the timer phase:
+
+Normally, the event loop executes all timer callbacks in the queue before moving on to the next phase.
+Exception: If a timer callback generates microtasks, these microtasks are executed immediately before moving to the next timer callback.
+
+
+
+3. Poll Phase
+*******************
+The poll phase prioritizes pending IO operations and waits for new events if the queue is empty.
+If a callback in the poll phase creates microtasks, they are also cleared before the loop checks the timers or setImmediate
+
+1. The Event Loop and the Call Stack
+The event loop is a continuous process that runs in the main thread, but it doesn't actively "poll" or "check" the call stack in a busy-wait loop. Instead, it relies on the runtime environment (browser or Node.js) to manage the call stack and notify the event loop when it's empty.
+
+2. How Does the Event Loop Know the Call Stack is Empty?
+The runtime environment (browser or Node.js) is responsible for managing the call stack and the event loop. Here's how it works:
+a. Call Stack Execution
+When JavaScript code runs, functions are pushed onto the call stack and popped off when they complete.
+The runtime keeps track of the call stack's state (whether it's empty or not).
+b. Event Loop Activation
+When the call stack becomes empty, the runtime notifies the event loop.
+The event loop then checks the callback queue (or microtask queue for promises) to see if there are any pending tasks to execute.
+c. Task Scheduling
+If there are tasks in the callback queue, the event loop pushes the next task to the call stack.
+The runtime then executes the task, and the process repeats.
+
+3. Who Manages the Call Stack and Event Loop?
+The runtime environment (browser or Node.js) is responsible for:
+Managing the call stack.
+Managing asynchronous operations (e.g., setTimeout, fetch, Promise).
+Notifying the event loop when the call stack is empty.
+
+For example:
+In a browser, the JavaScript engine (e.g., V8 in Chrome) works with the browser's event loop and Web APIs (like setTimeout, fetch, etc.).
+
+In Node.js, the libuv library handles asynchronous operations and notifies the event loop.
+
+4. How Does the Runtime Notify the Event Loop?
+The runtime uses low-level system mechanisms to manage this process efficiently. Here's how it works:
+
+a. Idle State
+When the call stack is empty, the JavaScript engine enters an idle state.
+At this point, the runtime can perform other tasks, such as garbage collection or waiting for I/O events.
+b. Event Notification
+When an asynchronous operation (e.g., a setTimeout timer expires or a network request completes), the runtime places the associated callback in the callback queue.
+The runtime then wakes up the event loop to process the callback queue.
+c. Event Loop Execution
+The event loop picks up the next task from the callback queue and pushes it to the call stack.
+The JavaScript engine executes the task, and the process repeats
+*********
+The event loop itself doesn't block the main thread because:
+It only runs when the call stack is empty.
+It relies on the runtime to notify it when tasks are ready (instead of continuously polling).
+Asynchronous operations (like I/O or timers) are handled by the runtime outside the main thread (e.g., by the browser or libuv in Node.js).
+
+
+Client Request → Node.js Main Thread (async I/O initiated)  
+                ↓  
+                Offload to libuv (libuv interacts with OS)  
+                ↓  
+                OS Kernel (handles I/O via epoll/kqueue/IOCP)  
+                ↓  
+Event Loop (continues processing other tasks)  
+                ↓  
+OS Notifies Completion → libuv adds callback to Event Loop Queue  
+                ↓  
+Event Loop processes callback → Callback added to Call Stack  
+                ↓  
+Main Thread executes callback → Response sent to Client  

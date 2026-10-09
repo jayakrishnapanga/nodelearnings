@@ -1,0 +1,74 @@
+Client Request → Node.js Main Thread (async I/O initiated)  
+                ↓  
+                Offload to libuv (libuv interacts with OS)  
+                ↓  
+                OS Kernel (handles I/O via epoll/kqueue/IOCP)  
+                ↓  
+Event Loop (continues processing other tasks)  
+                ↓  
+OS Notifies Completion → libuv adds callback to Event Loop Queue  
+                ↓  
+Event Loop processes callback → Callback added to Call Stack  
+                ↓  
+Main Thread executes callback → Response sent to Client  
+
+
+
+─────────────────────────────
+|     libuv Thread Pool      |
+─────────────────────────────
+| Queue:                     |
+|  [ 1. readFile job ]       |  → Worker 1 picks up
+|  [ 2. DNS lookup job ]     |  → Worker 2 picks up
+|  [ 3. crypto.pbkdf2 job ]  |  → Worker 3 picks up
+|  [ 4. fs.stat job ]        |  → Worker 4 picks up
+─────────────────────────────
+|     Pool: 4 Workers        |
+|   ┌─────────────┐          |
+|   |  Worker 1   |  ←─ Doing I/O read
+|   ├─────────────┤          |
+|   |  Worker 2   |  ←─ Doing DNS lookup
+|   ├─────────────┤          |
+|   |  Worker 3   |  ←─ Doing crypto hash
+|   ├─────────────┤          |
+|   |  Worker 4   |  ←─ Doing fs.stat
+|   └─────────────┘          |
+─────────────────────────────
+
+✅ Workers run jobs in parallel (up to the pool size).
+✅ If you have more tasks than workers, extra tasks wait in the queue.
+✅ When a worker finishes, it picks the next waiting task.
+
+
+
+
+
+✅ 3️⃣ How async/await maps to all this
+Big idea:
+async/await is just syntactic sugar for Promises + microtasks → they don’t use libuv directly!
+
+But they often wrap operations that do:
+
+async function readFileAsync() {
+  const data = await fs.promises.readFile('file.txt');
+  console.log(data.toString());
+}
+🔍 What happens?
+
+1️⃣ await pauses your function.
+2️⃣ The real work: fs.promises.readFile internally uses fs.readFile → libuv → thread pool → OS → back to Event Loop.
+3️⃣ When the I/O is done, libuv signals back: “I’m done!”
+4️⃣ The .then attached to the promise goes into the microtask queue.
+5️⃣ Event Loop finishes the current phase → runs microtasks → resumes your async function.
+
+So:
+✅ await → pauses until the Promise is resolved.
+✅ The heavy lifting (file read, DNS, crypto) → offloaded to libuv thread pool.
+✅ V8 + Event Loop wake up your function when the result is ready.
+
+
+
+1️⃣ uv_work_t → is the job structure in libuv’s thread pool.
+2️⃣ Thread pool → has a queue → idle workers pick up tasks → tasks finish → results put on Event Loop queue.
+3️⃣ async/await → pauses your JS until the Promise is resolved → behind the scenes, it’s still libuv + Event Loop doing the heavy lifting!
+

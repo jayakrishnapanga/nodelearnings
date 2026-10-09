@@ -1,0 +1,112 @@
+https://nodejs.org/en/learn/asynchronous-work/dont-block-the-event-loop
+thread pool also known as worker pool
+Libuv thread pool (C++-backed, default of 4 threads) handles disk/CPU-heavy I/O operation
+like file reading , dns lookup, crytpo ....
+
+these four threads are also called uvthreads
+bydefault these threads are four but you increase them and decrease aslo based on requirement 
+with help of this process.env.UV_THREADPOOL_SIZE=1  to 1024
+the maximum thread pool size is indeed 1024. This is a hard limit set by libuv itself. So even if someone tries to set a value higher than 1024, libuv will clamp it down to 1024.
+
+Practical Considerations
+Default Size: 4 threads (sufficient for most use cases).
+
+When to Increase:
+
+If your app uses many blocking operations (e.g., file I/O, crypto) that saturate the thread pool.
+
+Avoid increasing it unless you observe thread pool contention (e.g., slow file operations under load).
+
+Overhead:
+
+Each thread consumes ~2MB of memory (default 4 threads → ~8MB total).
+
+1024 threads → ~2GB of memory (significant overhead, risk of performance degradation).
+
+
+How to Set It
+Set the environment variable before starting Node.js:
+
+UV_THREADPOOL_SIZE=64 node app.js
+Do NOT set it via process.env at runtime (it has no effect):
+
+// ❌ Doesn't work! 
+process.env.UV_THREADPOOL_SIZE = 64; // Ignored by libuv
+
+
+ 
+
+Client Request → Node.js Main Thread (async I/O initiated)  
+                ↓  
+                Offload to libuv (libuv interacts with OS)  
+                ↓  
+                OS Kernel (handles I/O via epoll/kqueue/IOCP)  
+                ↓  
+Event Loop (continues processing other tasks)  
+                ↓  
+OS Notifies Completion → libuv adds callback to Event Loop Queue  
+                ↓  
+Event Loop processes callback → Callback added to Call Stack  
+                ↓  
+Main Thread executes callback → Response sent to Client  
+
+
+
+
+These are the Node.js module APIs that make use of this Worker Pool:
+
+I/O-intensive
+DNS: dns.lookup(), dns.lookupService().
+File System: All file system APIs except fs.FSWatcher() and those that are explicitly synchronous use libuv's threadpool.
+CPU-intensive
+Crypto: crypto.pbkdf2(), crypto.scrypt(), crypto.randomBytes(), crypto.randomFill(), crypto.generateKeyPair().
+Zlib: All zlib APIs except those that are explicitly synchronous use libuv's threadpool.
+
+
+
+The thread pool and worker pool are the same thing.
+
+It’s managed by libuv and handles blocking I/O tasks.
+
+It’s different from Worker Threads, which are used for CPU-bound JavaScript code.
+
+Use UV_THREADPOOL_SIZE to scale the worker pool for heavy workloads.
+
+
+********************
+Don’t Block the Event Loop: Avoid CPU-intensive tasks or long-running synchronous operations on the main thread. Use Worker Threads for such tasks.
+
+Don’t Block the Worker Pool: Avoid overloading the worker pool with too many blocking I/O tasks. Increase the pool size or optimize your code.
+
+Keep Your App Responsive: Offload heavy tasks to avoid degrading performance
+
+const express = require('express');
+const app = express();
+
+// Blocking operation on the event loop
+app.get('/blocking', (req, res) => {
+  let sum = 0;
+  for (let i = 0; i < 1e10; i++) { // A large, CPU-intensive loop
+    sum += i;
+  }
+  res.send(`Sum: ${sum}`);
+});
+
+// Non-blocking route
+app.get('/non-blocking', (req, res) => {
+  res.send('This is a non-blocking route');
+});
+
+app.listen(3000, () => {
+  console.log('Server is running on port 3000');
+});
+
+
+
+What Happens?
+When you visit /blocking, the event loop is blocked by the CPU-intensive loop.
+While the loop is running, the server cannot handle other requests (e.g., /non-blocking).
+The application becomes unresponsive until the loop finishes.
+
+Good Code (Offload to Worker Threads)
+To avoid blocking the event loop, offload the CPU-intensive task to a Worker Thread:

@@ -1,0 +1,22 @@
+The non-blocking I/O is handled by the OS through libuv, while blocking tasks use the thread pool. But the user is focusing on the non-blocking part here.
+
+─────────────────────────────
+|     libuv Thread Pool      |
+─────────────────────────────
+| Queue:                     |
+|  [ 1. readFile job ]       |  → Worker 1 picks up
+|  [ 2. DNS lookup job ]     |  → Worker 2 picks up
+|  [ 3. crypto.pbkdf2 job ]  |  → Worker 3 picks up
+|  [ 4. fs.stat job ]        |  → Worker 4 picks up
+─────────────────────────────
+|     Pool: 4 Workers        |
+|   ┌─────────────┐          |
+|   |  Worker 1   |  ←─ Doing I/O read
+|   ├─────────────┤          |
+|   |  Worker 2   |  ←─ Doing DNS lookup
+|   ├─────────────┤          |
+|   |  Worker 3   |  ←─ Doing crypto hash
+|   ├─────────────┤          |
+|   |  Worker 4   |  ←─ Doing fs.stat
+|   └─────────────┘          |
+─────────────────────────────
